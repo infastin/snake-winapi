@@ -1,13 +1,13 @@
 #pragma once
 
-#include <Windows.h>
 #include <stdbool.h>
+#include "Draw.h"
 
-extern int food_x;
-extern int food_y;
+typedef struct _Food Food;
 
-void FoodReset(void);
-bool FoodExists(void);
-bool FoodEaten(int head_x, int head_y);
-void RandFood(int left, int top, int right, int bottom);
-void DrawFood(HDC hdc);
+Food* InitFood(int radius);
+void FoodReset(Food* food);
+bool FoodExists(Food* food);
+bool FoodEaten(Food* food, int x, int y);
+void RandFood(Food* food, int left, int top, int right, int bottom);
+void DrawFood(Food* food, DrawEllipseFunc de);

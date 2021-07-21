@@ -1,19 +1,40 @@
-#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
 
 #include "Snake.h"
+#include "Draw.h"
 
-#define SNAKE_RADIUS 5
-#define SNAKE_SIZE 11
-#define MOVE_DISTANCE 5
-#define DEATH_RADIUS (SNAKE_RADIUS + 2)
+typedef struct _Segment Segment;
+
+struct _Segment
+{
+    Segment* next;
+    Segment* prev;
+
+    int x;
+    int y;
+
+    int old_x;
+    int old_y;
+};
+
+struct _Snake
+{
+    Segment* head;
+    Segment* tail;
+
+    int move_x;
+    int move_y;
+
+    int radius;
+    int size;
+};
 
 Segment* AddSegment(Segment* older, int x, int y)
 {
-    Segment* newer = malloc(sizeof(Segment));
+    Segment* newer = (Segment*)malloc(sizeof(Segment));
     newer->next = NULL;
     newer->prev = NULL;
 
@@ -37,17 +58,26 @@ Segment* AddSegment(Segment* older, int x, int y)
     return newer;
 }
 
-Snake* InitSnake(void)
+Snake* InitSnake(int radius)
 {
-    Snake* snake = malloc(sizeof(Snake));
+    Snake* snake = (Snake*)malloc(sizeof(Snake));
 
-    snake->head = AddSegment(NULL, 130, 120);
+    snake->head = AddSegment(NULL, 0, 0);
     snake->tail = snake->head;
 
     snake->move_x = 0;
     snake->move_y = 0;
 
+    snake->radius = radius;
+    snake->size = snake->radius * 2 + 1;
+
     return snake;
+}
+
+void SnakeSetStart(Snake *snake, int start_x, int start_y)
+{
+    snake->head->x = start_x;
+    snake->head->y = start_y;
 }
 
 void KillSnake(Snake* snake)
@@ -70,69 +100,56 @@ void SnakeAddSegment(Snake* snake)
     snake->tail = tail;
 }
 
-void DrawSnake(Snake *snake, HDC hdc)
+void DrawSnake(Snake *snake, DrawEllipseFunc de)
 {
-    HBRUSH hbrush = CreateSolidBrush(RGB(0, 255, 0));
-    SelectObject(hdc, hbrush);
-
     Segment* current = snake->head;
+
+    Color rgb = { 0, 255, 0 };
 
     while (current != NULL)
     {
-        Ellipse(hdc, current->x, current->y, current->x + SNAKE_SIZE, current->y + SNAKE_SIZE);
+        de(current->x, current->y, current->x + snake->size, current->y + snake->size, rgb);
         current = current->next;
     }
-    DeleteObject(hbrush);
 }
 
-void SnakeSpeed(HWND hwnd, int points)
-{
-    int cpuTime;
-
-    if (points > 30)
-        cpuTime = 20;
-    else if (points > 20)
-        cpuTime = 25;
-    else if (points > 14)
-        cpuTime = 30;
-    else if (points > 9)
-        cpuTime = 40;
-    else if (points > 4)
-        cpuTime = 50;
-    else
-        cpuTime = 60;
-
-    SetTimer(hwnd, 1, cpuTime, NULL);
-}
-
-void ParseKey(Snake *snake, int key)
+void SnakeMove(Snake* snake, SnakeMovement move)
 {
     snake->head->old_x = snake->head->x;
     snake->head->old_y = snake->head->y;
 
-    switch (key)
+    switch (move)
     {
-        case VK_LEFT:
-            snake->head->x -= MOVE_DISTANCE;
-            snake->move_x = -MOVE_DISTANCE;
+        case MOVE_LEFT:
+            snake->head->x -= snake->radius;
+            snake->move_x = -snake->radius;
             break;
-        case VK_RIGHT:
-            snake->head->x += MOVE_DISTANCE;
-            snake->move_x = MOVE_DISTANCE;
+        case MOVE_RIGHT:
+            snake->head->x += snake->radius;
+            snake->move_x = snake->radius;
             break;
-        case VK_UP:
-            snake->head->y -= MOVE_DISTANCE;
-            snake->move_y = -MOVE_DISTANCE;
+        case MOVE_UP:
+            snake->head->y -= snake->radius;
+            snake->move_y = -snake->radius;
             break;
-        case VK_DOWN:
-            snake->head->y += MOVE_DISTANCE;
-            snake->move_y = MOVE_DISTANCE;
+        case MOVE_DOWN:
+            snake->head->y += snake->radius;
+            snake->move_y = snake->radius;
             break;
-        default:
+        case MOVE_STILL:
             snake->head->x += snake->move_x;
             snake->head->y += snake->move_y;
             break;
     }
+}
+
+bool IsSnakeMoved(Snake* snake)
+{
+    if (snake->head->old_x == snake->head->x &&
+        snake->head->old_y == snake->head->y)
+        return false;
+
+    return true;
 }
 
 void SnakeMoved(Snake* snake)
@@ -153,8 +170,8 @@ void SnakeMoved(Snake* snake)
 
 bool IsDead(Snake* snake, int left, int top, int right, int bottom)
 {
-    if (snake->head->x > right - SNAKE_SIZE + 1 || snake->head->x < left ||
-        snake->head->y > bottom - SNAKE_SIZE + 1 || snake->head->y < top)
+    if (snake->head->x > right - snake->size || snake->head->x < left ||
+        snake->head->y > bottom - snake->size || snake->head->y < top)
         return true;
 
     Segment* current = snake->head->next;
@@ -168,4 +185,10 @@ bool IsDead(Snake* snake, int left, int top, int right, int bottom)
     }
 
     return false;
+}
+
+void SnakeGetHeadXY(Snake* snake, int* x, int* y)
+{
+    *x = snake->head->x;
+    *y = snake->head->y;
 }

@@ -141,11 +141,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Food.c" />
+    <ClCompile Include="Game.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="Snake.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Draw.h" />
     <ClInclude Include="Food.h" />
+    <ClInclude Include="Game.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Snake.h" />
   </ItemGroup>

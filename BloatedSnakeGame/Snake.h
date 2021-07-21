@@ -1,37 +1,27 @@
 #pragma once
 
-#include <windows.h>
+#include <stdbool.h>
 
-typedef struct _Segment Segment;
+#include "Draw.h"
 
-struct _Segment
+typedef enum
 {
-    Segment* next;
-    Segment* prev;
-
-    int x;
-    int y;
-
-    int old_x;
-    int old_y;
-};
+	MOVE_LEFT,
+	MOVE_UP,
+	MOVE_RIGHT,
+	MOVE_DOWN,
+	MOVE_STILL
+} SnakeMovement;
 
 typedef struct _Snake Snake;
 
-struct _Snake
-{
-    Segment* head;
-    Segment* tail;
-
-    int move_x;
-    int move_y;
-};
-
-Snake* InitSnake(void);
+Snake* InitSnake(int radius);
+void SnakeSetStart(Snake* snake, int start_x, int start_y);
 void KillSnake(Snake* snake);
 void SnakeMoved(Snake* snake);
-void DrawSnake(Snake* snake, HDC hdc);
+void DrawSnake(Snake* snake, DrawEllipseFunc de);
 void SnakeAddSegment(Snake* snake);
-void SnakeSpeed(HWND hwnd, int points);
-void ParseKey(Snake* snake, int key);
+void SnakeMove(Snake* snake, SnakeMovement move);
 bool IsDead(Snake* snake, int left, int top, int right, int bottom);
+bool IsSnakeMoved(Snake* snake);
+void SnakeGetHeadXY(Snake* snake, int* x, int* y);

@@ -4,59 +4,101 @@
 #include <time.h>
 
 #include "resource.h"
-#include "Food.h"
-#include "Snake.h"
+#include "Game.h"
+#include "Draw.h"
 
 const char AppWindowName[] = "brrr";
 
-int points = 0;
-int move_key = 0;
+Game* game;
+HWND hwnd;
+HDC hdc;
+PAINTSTRUCT ps;
+SnakeMovement move = MOVE_STILL;
 
-Snake* snake;
-
-#define LEFT 10
-#define TOP 10
-#define RIGHT 271
-#define BOTTOM 261
-
-void DrawBorders(HDC hdc)
+void LoseMessage(wchar_t *title, wchar_t *text)
 {
-    Rectangle(hdc, LEFT, TOP, RIGHT, BOTTOM);
+    KillTimer(hwnd, 1);
+    int id = MessageBox(hwnd, title, text, MB_YESNO | MB_ICONINFORMATION);
+
+    if (id == IDNO)
+        PostQuitMessage(0);
+    else
+    {
+        RestartGame(game);
+        move = MOVE_STILL;
+        int cpuTime = GameSpeed(game);
+        SetTimer(hwnd, 1, cpuTime, NULL);
+    }
 }
 
-void DrawPoints(HDC hdc)
+void DrawEllipse(int left, int top, int right, int bottom, Color rgb)
 {
-    wchar_t points_str[256];
-    wsprintf(points_str, L"Points: %d", points);
-    TextOut(hdc, 10, 265, points_str, lstrlen(points_str));
+    HBRUSH hbrush = CreateSolidBrush(RGB(rgb.red, rgb.green, rgb.blue));
+    SelectObject(hdc, hbrush);
+    Ellipse(hdc, left, top, right, bottom);
+    DeleteObject(hbrush);
 }
 
-void restart()
+void DrawRectangle(int left, int top, int right, int bottom, Color rgb)
 {
-    KillSnake(snake);
-    snake = InitSnake();
-    points = 0;
-    move_key = 0;
-    FoodReset();
+    HBRUSH hbrush = CreateSolidBrush(RGB(rgb.red, rgb.green, rgb.blue));
+    SelectObject(hdc, hbrush);
+    Rectangle(hdc, left, top, right, bottom);
+    DeleteObject(hbrush);
+}
+
+void DrawTextOut(int x, int y, wchar_t* str, int len)
+{
+    TextOut(hdc, x, y, str, len);
+}
+
+SnakeMovement ParseKey(int key)
+{
+    SnakeMovement move;
+
+    switch (key)
+    {
+        case VK_LEFT:
+            move = MOVE_LEFT;
+            break;
+        case VK_RIGHT:
+            move = MOVE_RIGHT;
+            break;
+        case VK_UP:
+            move = MOVE_UP;
+            break;
+        case VK_DOWN:
+            move = MOVE_DOWN;
+            break;
+        default:
+            move = MOVE_STILL;
+            break;
+    }
+
+    return move;
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    HDC hdc;
-    PAINTSTRUCT ps;
+    int cpuTime;
 
     switch (msg)
     {
         case WM_CREATE:
-            snake = InitSnake();
-            SnakeSpeed(hwnd, points);
+            game = InitGame(400, 430, 5);
+            cpuTime = GameSpeed(game);
+            SetTimer(hwnd, 1, cpuTime, NULL);
+
             break;
         case WM_TIMER:
+            cpuTime = GameSpeed(game);
+            SetTimer(hwnd, 1, cpuTime, NULL);
+
             InvalidateRect(hwnd, NULL, TRUE);
             UpdateWindow(hwnd);
             break;
         case WM_KEYDOWN:
-            move_key = wParam;
+            move = ParseKey(wParam);
             InvalidateRect(hwnd, NULL, TRUE);
             UpdateWindow(hwnd);
             break;
@@ -70,47 +112,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_PAINT:
             hdc = BeginPaint(hwnd, &ps);
 
-            DrawBorders(hdc);
-            SnakeSpeed(hwnd, points);
-
-            if (FoodExists() == false)
-                RandFood(LEFT, TOP, RIGHT, BOTTOM);
-
-            DrawFood(hdc);
-            DrawSnake(snake, hdc);
-            DrawPoints(hdc);
-
-            if (move_key == 0)
-                break;
-
-            ParseKey(snake, move_key);
-
-            if (IsDead(snake, LEFT, TOP, RIGHT, BOTTOM) == true)
-            {
-                KillTimer(hwnd, 1);
-                int id = MessageBox(hwnd, L"Want to retry?", L"Game Over", MB_YESNO | MB_ICONINFORMATION);
-
-                if (id == IDNO)
-                {
-                    PostQuitMessage(0);
-                }
-                else
-                {
-                    restart();
-                    SnakeSpeed(hwnd, points);
-
-                    break;
-                }
-            }
-
-            SnakeMoved(snake);
-
-            if (FoodEaten(snake->head->x, snake->head->y) == true)
-            {
-                SnakeAddSegment(snake);
-                FoodReset();
-                points++;
-            }
+            PlayGame(game, DrawRectangle, DrawEllipse, DrawTextOut, move, LoseMessage);
 
             EndPaint(hwnd, &ps);
             break;
@@ -125,7 +127,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     PWSTR pCmdLine, int nCmdShow)
 {
     WNDCLASSEX wc;
-    HWND hwnd;
     MSG Msg;
 
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -153,7 +154,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         AppWindowName,
         L"Bloated Snake Game",
         WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 300, 330,
+        CW_USEDEFAULT, CW_USEDEFAULT, 400, 430,
         NULL, NULL, hInstance, NULL);
 
     if (hwnd == NULL)

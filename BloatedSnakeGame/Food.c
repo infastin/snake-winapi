@@ -1,4 +1,3 @@
-#include <windows.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -6,51 +5,64 @@
 
 #include "Food.h"
 
-#define FOOD_RADIUS 5
-#define FOOD_SIZE 11
-#define EAT_RADIUS (FOOD_RADIUS + 3)
-
-static int food_x = 0;
-static int food_y = 0;
-
-void FoodReset(void)
+struct _Food
 {
-    food_x = 0;
-    food_y = 0;
+    int x;
+    int y;
+    int radius;
+    int size;
+};
+
+Food* InitFood(int radius)
+{
+    Food* food = (Food*)malloc(sizeof(Food));
+
+    food->x = 0;
+    food->y = 0;
+    food->radius = radius;
+    food->size = radius * 2 + 1;
+
+    return food;
 }
 
-bool FoodExists(void)
+void FoodReset(Food* food)
 {
-    if (food_x != 0 && food_y != 0)
+    food->x = 0;
+    food->y = 0;
+}
+
+bool FoodExists(Food* food)
+{
+    if (food->x != 0 && food->y != 0)
         return true;
 
     return false;
 }
 
-bool FoodEaten(int head_x, int head_y)
+bool FoodEaten(Food* food, int x, int y)
 {
-    if ((head_x - food_x) <= EAT_RADIUS && (head_x - food_x) >= -EAT_RADIUS &&
-        (head_y - food_y) <= EAT_RADIUS && (head_y - food_y) >= -EAT_RADIUS)
+    int eat_radius = food->radius + 3;
+
+    if ((x - food->x) <= eat_radius && (x - food->x) >= -eat_radius &&
+        (y - food->y) <= eat_radius && (y - food->y) >= -eat_radius)
         return true;
 
     return false;
 }
 
-void RandFood(int left, int top, int right, int bottom)
+void RandFood(Food* food, int left, int top, int right, int bottom)
 {
     srand(time(0));
 
     int width = right - left;
     int height = bottom - top;
 
-    food_x = (rand() % (width - 2 * FOOD_RADIUS)) + left;
-    food_y = (rand() % (height - 2 * FOOD_RADIUS)) + top;
+    food->x = (rand() % (width - 2 * food->radius)) + left;
+    food->y = (rand() % (height - 2 * food->radius)) + top;
 }
 
-void DrawFood(HDC hdc)
+void DrawFood(Food* food, DrawEllipseFunc de)
 {
-    HBRUSH hbrush = CreateSolidBrush(RGB(225, 255, 48));
-    SelectObject(hdc, hbrush);
-    Ellipse(hdc, food_x, food_y, food_x + FOOD_SIZE, food_y + FOOD_SIZE);
-    DeleteObject(hbrush);
+    Color rgb = { 255, 255, 48 };
+    de(food->x, food->y, food->x + food->size, food->y + food->size, rgb);
 }
